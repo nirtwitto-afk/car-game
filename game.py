@@ -65,9 +65,9 @@ class Player:
         self.lateral_speed = 0  # Horizontal movement speed
         self.max_lateral_speed = 3.7  # Slightly faster lane gliding
         self.lateral_acceleration = 0.18  # Smoother, slightly snappier lane changes
-        self.max_brake_time = 10 if car_type == CarType.ENDURANCE else 5
+        self.max_brake_time = 5
         self.brake_time_used = 0
-        self.next_brake_bonus_distance = 2500
+        self.next_brake_bonus_distance = 500 if car_type == CarType.ENDURANCE else 2500
         self.width = 100 if car_type == CarType.BIG_RIG else 95  # Bigger cars - can't fit between two
         self.height = 140 if car_type == CarType.BIG_RIG else 135
         
@@ -102,7 +102,7 @@ class Player:
         if keys[pygame.K_s]:
             brake_time_available = self.max_brake_time - self.brake_time_used
             if brake_time_available > 0:
-                self.speed = max(self.speed - self.brake_power, base_forward_speed * 0.5)
+                self.speed = max(self.speed - self.brake_power, self.max_speed * 0.1)
                 self.brake_time_used += 1 / FPS
         
         # Smooth lateral movement (left/right) - gliding
@@ -129,8 +129,12 @@ class Player:
         # Update distance and money
         self.distance += self.speed
         while self.distance >= self.next_brake_bonus_distance:
-            self.max_brake_time = min(10, self.max_brake_time + 1)
-            self.next_brake_bonus_distance += 2500
+            if self.car_type == CarType.ENDURANCE:
+                self.max_brake_time = min(50, self.max_brake_time + 1)
+                self.next_brake_bonus_distance += 500
+            else:
+                self.max_brake_time = min(10, self.max_brake_time + 1)
+                self.next_brake_bonus_distance += 2500
         multiplier = 2.0 if self.car_type == CarType.BIG_RIG else 1.0
         self.money_earned = int(self.distance * multiplier * 0.1)
         
@@ -243,8 +247,8 @@ class Enemy:
         self.y = y
         self.speed = random.uniform(2, 5)  # Slower than player base speed
         self.is_big = is_big
-        self.width = int(80 * 1.3) if is_big else 80  # Bigger cars appear every few spawns
-        self.height = int(120 * 1.3) if is_big else 120
+        self.width = int(80 * 1.5) if is_big else 80  # Bigger cars appear every few spawns
+        self.height = int(120 * 2.0) if is_big else 120
         # Generate realistic camo color
         base_color = random.choice([
             (100, 150, 100),  # Green
@@ -404,7 +408,10 @@ class Game:
     
     def spawn_enemies(self):
         self.enemy_spawn_timer += 1
-        if self.enemy_spawn_timer >= self.enemy_spawn_rate:
+        spawn_rate = self.enemy_spawn_rate
+        if self.player and self.player.speed >= self.player.max_speed * 0.99:
+            spawn_rate = int(self.enemy_spawn_rate * 0.7)
+        if self.enemy_spawn_timer >= spawn_rate:
             self.enemy_spawn_timer = 0
             
             # Ensure "always solvable" - at least one lane must be clear
@@ -538,9 +545,10 @@ class Game:
         hud_width = 300
         hud_height = 280
         
-        # HUD background with gradient effect.
-        pygame.draw.rect(self.screen, (20, 20, 30), (hud_x - 5, hud_y - 5, hud_width, hud_height), border_radius=8)
-        pygame.draw.rect(self.screen, (100, 200, 50), (hud_x - 5, hud_y - 5, hud_width, hud_height), 3)
+        # HUD background with transparent overlay.
+        panel_surface = pygame.Surface((hud_width + 10, hud_height + 10), pygame.SRCALPHA)
+        panel_surface.fill((0, 0, 0, 0))
+        self.screen.blit(panel_surface, (hud_x - 5, hud_y - 5))
         
         # Title
         title = self.font_medium.render("STATUS", True, (100, 255, 100))
