@@ -538,7 +538,7 @@ class Game:
         hud_width = 300
         hud_height = 280
         
-        # HUD background with gradient effect
+        # HUD background with gradient effect.
         pygame.draw.rect(self.screen, (20, 20, 30), (hud_x - 5, hud_y - 5, hud_width, hud_height), border_radius=8)
         pygame.draw.rect(self.screen, (100, 200, 50), (hud_x - 5, hud_y - 5, hud_width, hud_height), 3)
         
