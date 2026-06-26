@@ -5,6 +5,7 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+#
 # Initialize Pygame
 pygame.init()
 
