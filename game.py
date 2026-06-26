@@ -67,7 +67,7 @@ class Player:
         self.lateral_acceleration = 0.18  # Smoother, slightly snappier lane changes
         self.max_brake_time = 5
         self.brake_time_used = 0
-        self.next_brake_bonus_distance = 500 if car_type == CarType.ENDURANCE else 2500
+        self.next_brake_bonus_distance = 1000 if car_type == CarType.ENDURANCE else 2500
         self.width = 100 if car_type == CarType.BIG_RIG else 95  # Bigger cars - can't fit between two
         self.height = 140 if car_type == CarType.BIG_RIG else 135
         
@@ -131,7 +131,7 @@ class Player:
         while self.distance >= self.next_brake_bonus_distance:
             if self.car_type == CarType.ENDURANCE:
                 self.max_brake_time = min(50, self.max_brake_time + 1)
-                self.next_brake_bonus_distance += 500
+                self.next_brake_bonus_distance += 1000
             else:
                 self.max_brake_time = min(10, self.max_brake_time + 1)
                 self.next_brake_bonus_distance += 2500
@@ -423,7 +423,7 @@ class Game:
             should_spawn_big = self.enemy_spawn_count >= self.next_big_enemy_in
             if should_spawn_big:
                 self.enemy_spawn_count = 0
-                self.next_big_enemy_in = random.randint(4, 10)
+                self.next_big_enemy_in = random.randint(2, 4)
             else:
                 self.enemy_spawn_count += 1
             
