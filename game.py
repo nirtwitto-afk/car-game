@@ -14,8 +14,9 @@ SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 800
 FPS = 60
 NUM_LANES = 5
-LANE_WIDTH = SCREEN_WIDTH // NUM_LANES
-ROAD_WIDTH = SCREEN_WIDTH
+ROAD_WIDTH = SCREEN_WIDTH - 220
+ROAD_LEFT_MARGIN = (SCREEN_WIDTH - ROAD_WIDTH) // 2
+LANE_WIDTH = ROAD_WIDTH // NUM_LANES
 BACKGROUND_COLOR = (0, 0, 0)
 ROAD_COLOR = (50, 50, 60)  # Gray-black road
 LANE_LINE_COLOR = (255, 255, 255)
@@ -62,10 +63,11 @@ class Player:
         self.acceleration = 0.3
         self.brake_power = 0.4
         self.lateral_speed = 0  # Horizontal movement speed
-        self.max_lateral_speed = 3  # Slower lateral movement
-        self.lateral_acceleration = 0.15  # Slower acceleration
-        self.max_brake_time = 20 if car_type == CarType.ENDURANCE else 5
+        self.max_lateral_speed = 3.7  # Slightly faster lane gliding
+        self.lateral_acceleration = 0.18  # Smoother, slightly snappier lane changes
+        self.max_brake_time = 10 if car_type == CarType.ENDURANCE else 5
         self.brake_time_used = 0
+        self.next_brake_bonus_distance = 2500
         self.width = 100 if car_type == CarType.BIG_RIG else 95  # Bigger cars - can't fit between two
         self.height = 140 if car_type == CarType.BIG_RIG else 135
         
@@ -121,10 +123,14 @@ class Player:
         self.x += self.lateral_speed
         
         # Constrain to road bounds
-        self.x = max(self.width // 2 + 10, min(self.x, SCREEN_WIDTH - self.width // 2 - 10))
+        self.x = max(ROAD_LEFT_MARGIN + self.width // 2 + 10,
+                     min(self.x, ROAD_LEFT_MARGIN + ROAD_WIDTH - self.width // 2 - 10))
         
         # Update distance and money
         self.distance += self.speed
+        while self.distance >= self.next_brake_bonus_distance:
+            self.max_brake_time = min(10, self.max_brake_time + 1)
+            self.next_brake_bonus_distance += 2500
         multiplier = 2.0 if self.car_type == CarType.BIG_RIG else 1.0
         self.money_earned = int(self.distance * multiplier * 0.1)
         
@@ -231,13 +237,14 @@ class Player:
         pygame.draw.rect(surface, accent_color, rect, 2)
 
 class Enemy:
-    def __init__(self, lane: int, y: float):
+    def __init__(self, lane: int, y: float, is_big: bool = False):
         self.lane = lane
-        self.x = lane * LANE_WIDTH + LANE_WIDTH // 2
+        self.x = ROAD_LEFT_MARGIN + lane * LANE_WIDTH + LANE_WIDTH // 2
         self.y = y
         self.speed = random.uniform(2, 5)  # Slower than player base speed
-        self.width = 80  # Bigger cars
-        self.height = 120
+        self.is_big = is_big
+        self.width = int(80 * 1.3) if is_big else 80  # Bigger cars appear every few spawns
+        self.height = int(120 * 1.3) if is_big else 120
         # Generate realistic camo color
         base_color = random.choice([
             (100, 150, 100),  # Green
@@ -316,6 +323,8 @@ class Game:
         self.current_car = CarType.DEFAULT
         self.enemy_spawn_timer = 0
         self.enemy_spawn_rate = 60
+        self.enemy_spawn_count = 0
+        self.next_big_enemy_in = random.randint(4, 10)
         self.lane_line_offset = 0
         self.selected_menu_item = 0
         self.selected_shop_item = 0
@@ -404,8 +413,16 @@ class Game:
             available_lanes = list(range(NUM_LANES))
             lanes_spawned = random.sample(available_lanes, lanes_to_spawn)
             
+            should_spawn_big = self.enemy_spawn_count >= self.next_big_enemy_in
+            if should_spawn_big:
+                self.enemy_spawn_count = 0
+                self.next_big_enemy_in = random.randint(4, 10)
+            else:
+                self.enemy_spawn_count += 1
+            
+            big_lane = random.choice(lanes_spawned) if should_spawn_big else None
             for lane in lanes_spawned:
-                enemy = Enemy(lane, -80)
+                enemy = Enemy(lane, -80, is_big=(lane == big_lane))
                 self.enemies.append(enemy)
     
     def update_game(self):
@@ -454,7 +471,7 @@ class Game:
         pygame.draw.rect(self.screen, dirt_color, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
         
         # Draw road surface
-        pygame.draw.rect(self.screen, ROAD_COLOR, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.draw.rect(self.screen, ROAD_COLOR, (ROAD_LEFT_MARGIN, 0, ROAD_WIDTH, SCREEN_HEIGHT))
         
         # Draw brick walls on edges
         brick_color = (139, 69, 19)
@@ -489,21 +506,21 @@ class Game:
         for y_base in range(0, SCREEN_HEIGHT, 150):
             y = y_base
             # Group of bushes
-            pygame.draw.circle(self.screen, bush_color, (18, y + 50), 14)
-            pygame.draw.circle(self.screen, light_bush_color, (24, y + 60), 12)
-            pygame.draw.circle(self.screen, bush_color, (12, y + 60), 11)
+            pygame.draw.circle(self.screen, bush_color, (ROAD_LEFT_MARGIN - 20, y + 50), 14)
+            pygame.draw.circle(self.screen, light_bush_color, (ROAD_LEFT_MARGIN - 14, y + 60), 12)
+            pygame.draw.circle(self.screen, bush_color, (ROAD_LEFT_MARGIN - 26, y + 60), 11)
         
         # Right side bushes (stationary positions)
         for y_base in range(0, SCREEN_HEIGHT, 150):
             y = y_base
             # Group of bushes
-            pygame.draw.circle(self.screen, bush_color, (SCREEN_WIDTH - 18, y + 50), 14)
-            pygame.draw.circle(self.screen, light_bush_color, (SCREEN_WIDTH - 24, y + 60), 12)
-            pygame.draw.circle(self.screen, bush_color, (SCREEN_WIDTH - 12, y + 60), 11)
+            pygame.draw.circle(self.screen, bush_color, (ROAD_LEFT_MARGIN + ROAD_WIDTH + 18, y + 50), 14)
+            pygame.draw.circle(self.screen, light_bush_color, (ROAD_LEFT_MARGIN + ROAD_WIDTH + 24, y + 60), 12)
+            pygame.draw.circle(self.screen, bush_color, (ROAD_LEFT_MARGIN + ROAD_WIDTH + 12, y + 60), 11)
         
         # Draw lane divider lines (thicker)
         for i in range(1, NUM_LANES):
-            x = i * LANE_WIDTH
+            x = ROAD_LEFT_MARGIN + i * LANE_WIDTH
             # Draw dashed lines
             dash_length = 25
             gap_length = 25
