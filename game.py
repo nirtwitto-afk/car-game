@@ -88,8 +88,14 @@ class Player:
         # Check if player is steering (reduce speed when turning)
         is_steering = False
         
+        # Braking
+        if keys[pygame.K_s]:
+            brake_time_available = self.max_brake_time - self.brake_time_used
+            if brake_time_available > 0:
+                self.speed = max(self.speed - self.brake_power, self.max_speed * 0.1)
+                self.brake_time_used += 1 / FPS
         # Acceleration with W (boost on top of base speed)
-        if keys[pygame.K_w]:
+        elif keys[pygame.K_w]:
             self.speed = min(self.speed + self.acceleration, self.max_speed)
         else:
             # Decelerate, but apply extra penalty if steering
@@ -97,13 +103,6 @@ class Player:
                 self.speed = max(self.speed - 0.3, base_forward_speed * 0.33)  # 3x slower when turning
             else:
                 self.speed = max(self.speed - 0.15, base_forward_speed)
-        
-        # Braking
-        if keys[pygame.K_s]:
-            brake_time_available = self.max_brake_time - self.brake_time_used
-            if brake_time_available > 0:
-                self.speed = max(self.speed - self.brake_power, self.max_speed * 0.1)
-                self.brake_time_used += 1 / FPS
         
         # Smooth lateral movement (left/right) - gliding
         if keys[pygame.K_a]:
